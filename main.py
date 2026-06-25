@@ -2,8 +2,10 @@ from fastapi import FastAPI, Depends
 from sqlmodel import select
 from sqlalchemy.exc import OperationalError
 from src.core import get_db_session
+from src.routes.asset_router import asset_router
 
 app = FastAPI()
+app.include_router(asset_router)
 
 @app.get("/health")
 async def health_check():

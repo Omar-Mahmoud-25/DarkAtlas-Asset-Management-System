@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 from uuid import UUID, uuid4
 
 from sqlmodel import (
@@ -6,7 +6,7 @@ from sqlmodel import (
     UniqueConstraint, ARRAY, Column, String
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from datetime import datetime 
+from datetime import datetime
 from .enums import AssetType, AssetStatus
 
 class Asset(SQLModel, table=True):
@@ -20,9 +20,9 @@ class Asset(SQLModel, table=True):
     status: AssetStatus = Field(default=AssetStatus.active, index=True)
     first_seen: datetime = Field(default_factory=datetime.now)
     last_seen: datetime = Field(default_factory=datetime.now)
-    source: str = Field(default=None, index=True)
+    source: Optional[str] = Field(default=None, index=True)
     tags: list[str] = Field(default_factory=list, sa_column=Column(ARRAY(String)))
-    metadata_: dict[str, Any] = Field(sa_column=Column("metadata",JSONB))
+    metadata_: dict[str, Any] = Field(default_factory=dict, sa_column=Column("metadata", JSONB))
 
 class AssetRelation(SQLModel, table=True):
     __tablename__ = "asset_relations"
