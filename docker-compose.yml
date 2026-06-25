@@ -2,16 +2,18 @@ services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
+    command: ["postgres", "-p", "5433"]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-darkatlas}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-darkatlas}
       POSTGRES_DB: ${POSTGRES_DB:-darkatlas}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5433}
     ports:
-      - "5432:5432"
+      - "5433:5433"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-darkatlas}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-darkatlas} -p 5433"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -22,7 +24,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-darkatlas}:${POSTGRES_PASSWORD:-darkatlas}@db:5432/${POSTGRES_DB:-darkatlas}
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-darkatlas}:${POSTGRES_PASSWORD:-darkatlas}@db:${POSTGRES_PORT:-5433}/${POSTGRES_DB:-darkatlas}
     depends_on:
       db:
         condition: service_healthy

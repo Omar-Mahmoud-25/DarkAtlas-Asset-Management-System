@@ -7,6 +7,7 @@ class Config(BaseSettings):
     POSTGRES_USER: str = "darkatlas"
     POSTGRES_PASSWORD: str = "darkatlas"
     POSTGRES_DB: str = "darkatlas"
+    POSTGRES_PORT: int = 5433
     DATABASE_URL: str | None = None
     API_KEY: str
 
@@ -14,7 +15,7 @@ class Config(BaseSettings):
         if self.DATABASE_URL is None:
             self.DATABASE_URL = (
                 f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
-                f"@localhost:5432/{self.POSTGRES_DB}"
+                f"@localhost:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
             )
 
 
