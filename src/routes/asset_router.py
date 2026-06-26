@@ -8,7 +8,7 @@ from src.models.schema import (
 )
 from src.models.enums import AssetType, AssetStatus
 from typing import Optional, Literal
-
+from src.core.auth import write_authorized
 
 asset_router = APIRouter(prefix="/api/v1/assets", tags=["assets"])
 
@@ -65,7 +65,7 @@ async def get_asset_by_id(asset_id: str, service: AssetsService = Depends(get_as
     return JSONResponse(status_code=404, content={"message": "Asset not found"})
 
 
-@asset_router.post("/", status_code=201)
+@asset_router.post("/", status_code=201, dependencies=[Depends(write_authorized)])
 async def create_asset(request: CreateAssetRequest, service: AssetsService = Depends(get_assets_service)):
     try:
         created_asset = service.create_asset(request)
@@ -88,7 +88,7 @@ async def create_asset(request: CreateAssetRequest, service: AssetsService = Dep
         return JSONResponse(status_code=400, content={"message": str(e)})
 
 
-@asset_router.put("/{asset_id}")
+@asset_router.put("/{asset_id}", status_code=200, dependencies=[Depends(write_authorized)])
 async def update_asset(
     asset_id: str,
     updated_asset: UpdateAssetRequest,
@@ -117,7 +117,7 @@ async def update_asset(
         return JSONResponse(status_code=400, content={"message": str(e)})
 
 
-@asset_router.delete("/{asset_id}")
+@asset_router.delete("/{asset_id}", status_code=200, dependencies=[Depends(write_authorized)])
 async def delete_asset(asset_id: str, service: AssetsService = Depends(get_assets_service)):
     deleted = service.delete_asset(asset_id)
     if deleted:
