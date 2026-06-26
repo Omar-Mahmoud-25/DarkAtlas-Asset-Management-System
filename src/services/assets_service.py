@@ -1,14 +1,14 @@
 from src.repositories import AssetsRepository
 from src.models import Asset
-from src.models.schema import CreateAssetRequest, UpdateAssetRequest
+from src.models.schema import CreateAssetRequest, UpdateAssetRequest, AssetFilters
 
 
 class AssetsService:
     def __init__(self, db_session):
         self.asset_repo = AssetsRepository(db_session)
 
-    def get_assets(self):
-        return self.asset_repo.get_all_assets()
+    def get_assets(self, filters: AssetFilters):
+        return self.asset_repo.get_all_assets(filters)
 
     def get_asset_by_id(self, asset_id: str):
         return self.asset_repo.get_asset_by_id(asset_id)

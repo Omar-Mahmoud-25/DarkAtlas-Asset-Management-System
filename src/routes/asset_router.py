@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 from src.core.database import get_db_session
 from src.services.assets_service import AssetsService
 from src.models.schema import (
     ListAssetsResponse, AssetResponse,
-    CreateAssetRequest, UpdateAssetRequest
+    CreateAssetRequest, UpdateAssetRequest, AssetFilters
 )
+from src.models.enums import AssetType, AssetStatus
+from typing import Optional, Literal
 
 
 asset_router = APIRouter(prefix="/api/v1/assets", tags=["assets"])
@@ -16,13 +18,43 @@ def get_assets_service(db_session=Depends(get_db_session)):
 
 
 @asset_router.get("/", response_model=ListAssetsResponse)
-async def get_assets(service: AssetsService = Depends(get_assets_service)):
-    assets = service.get_assets()
-    response = ListAssetsResponse(
-        assets=[AssetResponse.model_validate(a.__dict__ | {"metadata": a.metadata_ or {}}) for a in assets],
-        assets_count=len(assets)
+async def get_assets(
+    type: Optional[AssetType] = Query(default=None, description="Filter by asset type"),
+    status: Optional[AssetStatus] = Query(default=None, description="Filter by asset status"),
+    tag: Optional[str] = Query(default=None, description="Filter assets that contain this tag"),
+    value_contains: Optional[str] = Query(default=None, description="Substring search on asset value"),
+    source: Optional[str] = Query(default=None, description="Filter by source"),
+    sort_by: Literal["value", "type", "status", "first_seen", "last_seen"] = Query(
+        default="last_seen", description="Field to sort by"
+    ),
+    sort_order: Literal["asc", "desc"] = Query(default="desc", description="Sort direction"),
+    page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(default=20, ge=1, le=200, description="Results per page"),
+    service: AssetsService = Depends(get_assets_service),
+):
+    filters = AssetFilters(
+        type=type,
+        status=status,
+        tag=tag,
+        value_contains=value_contains,
+        source=source,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        page=page,
+        page_size=page_size,
     )
-    return response
+    assets, total_count = service.get_assets(filters)
+    asset_responses = [
+        AssetResponse.model_validate(a.__dict__ | {"metadata": a.metadata_ or {}})
+        for a in assets
+    ]
+    return ListAssetsResponse(
+        total_count=total_count,
+        page=page,
+        page_size=page_size,
+        assets_count=len(asset_responses),
+        assets=asset_responses,
+    )
 
 
 @asset_router.get("/{asset_id}", response_model=AssetResponse)

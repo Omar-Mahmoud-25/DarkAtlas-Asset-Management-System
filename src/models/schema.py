@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import Any, Optional
+from pydantic import BaseModel, Field
+from typing import Any, Optional, Literal
 from uuid import UUID
 from datetime import datetime
 from src.models.enums import AssetType, AssetStatus
@@ -23,6 +23,19 @@ class UpdateAssetRequest(BaseModel):
     metadata: Optional[dict[str, Any]] = None
 
 
+class AssetFilters(BaseModel):
+    """Query parameters for filtering, sorting, and paginating the asset list."""
+    type: Optional[AssetType] = None
+    status: Optional[AssetStatus] = None
+    tag: Optional[str] = None
+    value_contains: Optional[str] = None
+    source: Optional[str] = None
+    sort_by: Literal["value", "type", "status", "first_seen", "last_seen"] = "last_seen"
+    sort_order: Literal["asc", "desc"] = "desc"
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=20, ge=1, le=200)
+
+
 class AssetResponse(BaseModel):
     id: UUID
     type: AssetType
@@ -39,5 +52,8 @@ class AssetResponse(BaseModel):
 
 
 class ListAssetsResponse(BaseModel):
+    total_count: int
+    page: int
+    page_size: int
     assets_count: int
     assets: list[AssetResponse]
