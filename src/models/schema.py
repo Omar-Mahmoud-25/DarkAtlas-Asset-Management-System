@@ -35,6 +35,16 @@ class AssetFilters(BaseModel):
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=20, ge=1, le=200)
 
+class BulkImportItem(BaseModel):
+    id: str
+    type: AssetType
+    status: AssetStatus = AssetStatus.active
+    value: str
+    source: Optional[str] = None
+    tags: list[str] = []
+    metadata: dict[str, Any] = {}
+    parent: Optional[str] = None
+    covers: Optional[str] = None
 
 class AssetResponse(BaseModel):
     id: UUID

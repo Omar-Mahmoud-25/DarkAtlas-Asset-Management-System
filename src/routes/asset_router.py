@@ -123,3 +123,21 @@ async def delete_asset(asset_id: str, service: AssetsService = Depends(get_asset
     if deleted:
         return JSONResponse(status_code=200, content={"message": "Asset deleted successfully"})
     return JSONResponse(status_code=404, content={"message": "Asset not found"})
+
+@asset_router.post("/bulk", status_code=201, dependencies=[Depends(write_authorized)])
+async def bulk_create_assets(
+    assets_data: list[dict],
+    service: AssetsService = Depends(get_assets_service)
+):
+    try:
+        created_count, updated_count, errors = service.bulk_create_assets(assets_data)
+        return JSONResponse(
+            status_code=201,
+            content={
+                "created_assets_count": created_count,
+                "updated_assets_count": updated_count,
+                "errors": errors
+            }
+        )
+    except Exception as e:
+        return JSONResponse(status_code=400, content={"message": str(e)})

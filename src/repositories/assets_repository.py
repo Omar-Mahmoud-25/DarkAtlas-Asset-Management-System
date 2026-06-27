@@ -50,6 +50,10 @@ class AssetsRepository:
     def get_asset_by_id(self, asset_id: str):
         statement = select(Asset).where(Asset.id == asset_id)
         return self.session.exec(statement).first()
+    
+    def get_asset_by_type_value(self, asset_type: str, asset_value: str):
+        statement = select(Asset).where(Asset.type == asset_type, Asset.value == asset_value)
+        return self.session.exec(statement).first()
 
     def create_asset(self, asset: Asset):
         self.session.add(asset)
@@ -57,18 +61,16 @@ class AssetsRepository:
         self.session.refresh(asset)
         return asset
 
-    def update_asset(self, asset_id: str, updated_asset: UpdateAssetRequest):
-        asset = self.get_asset_by_id(asset_id)
-        if asset:
+    def update_asset(self, asset_id: str, updated_asset: Asset):
+        old_asset = self.get_asset_by_id(asset_id)
+        if old_asset:
             update_data = updated_asset.model_dump(exclude_unset=True)
-            if "metadata" in update_data:
-                update_data["metadata_"] = update_data.pop("metadata")
             for key, value in update_data.items():
-                setattr(asset, key, value)
-            asset.last_seen = datetime.now()
+                setattr(old_asset, key, value)
+            old_asset.last_seen = datetime.now()
             self.session.commit()
-            self.session.refresh(asset)
-            return asset
+            self.session.refresh(old_asset)
+            return old_asset
         return None
 
     def delete_asset(self, asset_id: str):
