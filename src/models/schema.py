@@ -4,6 +4,7 @@ from uuid import UUID
 from datetime import datetime
 from src.models.enums import AssetType, AssetStatus
 
+# ----------- Requests ----------------
 
 class CreateAssetRequest(BaseModel):
     type: AssetType
@@ -13,7 +14,6 @@ class CreateAssetRequest(BaseModel):
     tags: list[str] = []
     metadata: dict[str, Any] = {}
 
-
 class UpdateAssetRequest(BaseModel):
     type: Optional[AssetType] = None
     status: Optional[AssetStatus] = None
@@ -21,7 +21,6 @@ class UpdateAssetRequest(BaseModel):
     source: Optional[str] = None
     tags: Optional[list[str]] = None
     metadata: Optional[dict[str, Any]] = None
-
 
 class AssetFilters(BaseModel):
     """Query parameters for filtering, sorting, and paginating the asset list."""
@@ -46,6 +45,13 @@ class BulkImportItem(BaseModel):
     parent: Optional[str] = None
     covers: Optional[str] = None
 
+class CreateRelationRequest(BaseModel):
+    child_id: UUID
+    relation_type: str
+
+
+# ----------- Responses ----------------
+
 class AssetResponse(BaseModel):
     id: UUID
     type: AssetType
@@ -67,3 +73,34 @@ class ListAssetsResponse(BaseModel):
     page_size: int
     assets_count: int
     assets: list[AssetResponse]
+
+
+class RelationResponse(BaseModel):
+    id: UUID
+    parent_id: UUID
+    child_id: UUID
+    relation_type: str
+
+    class Config:
+        from_attributes = True
+
+class RelationsListResponse(BaseModel):
+    """Relations separated by direction relative to the queried asset."""
+    children: list[RelationResponse]
+    parents : list[RelationResponse]
+    total_count: int
+
+class RelatedAsset(BaseModel):
+    asset: AssetResponse
+    relation_type: str
+
+    class Config:
+        from_attributes = True
+
+class AssetGraphResponse(BaseModel):
+    asset: AssetResponse
+    parents: list[RelatedAsset]
+    children: list[RelatedAsset]
+
+    class Config:
+        from_attributes = True
