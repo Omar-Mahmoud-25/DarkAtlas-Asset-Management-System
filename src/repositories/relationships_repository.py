@@ -22,6 +22,17 @@ class RelationshipsRepository:
         self.session.refresh(relation)
         return relation
 
+    def relation_exists(
+        self, parent_id: UUID, child_id: UUID, relation_type: str
+    ) -> bool:
+        """Return True if an identical relation already exists (idempotency check)."""
+        statement = select(AssetRelation).where(
+            AssetRelation.parent_id == parent_id,
+            AssetRelation.child_id == child_id,
+            AssetRelation.relation_type == relation_type,
+        )
+        return self.session.exec(statement).first() is not None
+
     def get_relations_by_asset_id(self, asset_id: UUID) -> list[AssetRelation]:
         """Return all relation rows where the asset is either parent or child."""
         statement = select(AssetRelation).where(
