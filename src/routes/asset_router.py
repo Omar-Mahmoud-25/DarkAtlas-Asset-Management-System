@@ -68,7 +68,7 @@ async def get_asset_by_id(asset_id: str, service: AssetsService = Depends(get_as
 @asset_router.post("/", status_code=201, dependencies=[Depends(write_authorized)])
 async def create_asset(request: CreateAssetRequest, service: AssetsService = Depends(get_assets_service)):
     try:
-        created_asset = service.create_asset(request)
+        created_asset, merged = service.create_asset(request)
         response = AssetResponse(
             id=created_asset.id,
             type=created_asset.type,
@@ -82,7 +82,7 @@ async def create_asset(request: CreateAssetRequest, service: AssetsService = Dep
         )
         return JSONResponse(
             status_code=201,
-            content={"message": "Asset created successfully", "asset": response.model_dump(mode="json")}
+            content={"message": f"Asset {"updated" if merged else "created"} successfully", "asset": response.model_dump(mode="json")}
         )
     except Exception as e:
         return JSONResponse(status_code=400, content={"message": str(e)})
