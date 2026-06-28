@@ -10,7 +10,7 @@ from src.models.schema import (
 from src.services.relationships_service import RelationshipsService
 
 
-relations_router = APIRouter(prefix="/api/v1/assets", tags=["relations"])
+relations_router = APIRouter(prefix="/api/v1/assets", tags=["Relations"])
 
 
 def get_relations_service(db_session=Depends(get_db_session)):
@@ -23,7 +23,8 @@ def get_relations_service(db_session=Depends(get_db_session)):
     "/{asset_id}/relations",
     status_code=201,
     dependencies=[Depends(write_authorized)],
-    summary="Create a relation (asset_id is the parent)",
+    summary="Create a relation",
+    description="Create a directed relation where `asset_id` is the parent and `child_id` is the child. `relation_type` is a free-form string (e.g. `parent`, `covers`).",
 )
 async def create_relation(
     asset_id: str,
@@ -51,7 +52,8 @@ async def create_relation(
 @relations_router.get(
     "/{asset_id}/relations",
     response_model=RelationsListResponse,
-    summary="List relations for an asset, split into parent and child directions",
+    summary="List relations for an asset",
+    description="Return all relations involving this asset, split into `parents` (where this asset is the child) and `children` (where this asset is the parent).",
 )
 async def get_relations(
     asset_id: str,
@@ -75,7 +77,8 @@ async def get_relations(
 
 @relations_router.get(
     "/{asset_id}/relations/{relation_id}",
-    summary="Get a specific relation by its ID",
+    summary="Get a relation by ID",
+    description="Retrieve a single relation by its UUID.",
 )
 async def get_relation_by_id(
     asset_id: str,
@@ -94,7 +97,8 @@ async def get_relation_by_id(
 @relations_router.delete(
     "/{asset_id}/relations/{relation_id}",
     dependencies=[Depends(write_authorized)],
-    summary="Delete a relation by its ID",
+    summary="Delete a relation",
+    description="Permanently delete a relation by its UUID.",
 )
 async def delete_relation(
     asset_id: str,
@@ -112,7 +116,8 @@ async def delete_relation(
 @relations_router.get(
     "/{asset_id}/graph",
     response_model=AssetGraphResponse,
-    summary="Fetch an asset together with its full related-asset graph (one hop)",
+    summary="Get asset graph",
+    description="Return an asset together with its immediate parents and children (one-hop graph). Each related entry includes the full asset object and the relation type.",
 )
 async def get_asset_graph(
     asset_id: str,
