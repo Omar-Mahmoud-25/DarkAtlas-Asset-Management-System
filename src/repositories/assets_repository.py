@@ -66,7 +66,8 @@ class AssetsRepository:
         if old_asset:
             update_data = updated_asset.model_dump(exclude_unset=True)
             for key, value in update_data.items():
-                setattr(old_asset, key, value)
+                if key != "id" and key != "first_seen":
+                    setattr(old_asset, key, value)
             old_asset.last_seen = datetime.now()
             self.session.commit()
             self.session.refresh(old_asset)
