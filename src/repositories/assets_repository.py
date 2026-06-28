@@ -1,8 +1,9 @@
 from src.models import Asset
+from src.models.enums import AssetType, AssetStatus
 from src.models.schema import UpdateAssetRequest, AssetFilters
 from sqlmodel import Session, select, func
 from sqlalchemy import asc, desc
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 class AssetsRepository:
@@ -81,3 +82,15 @@ class AssetsRepository:
             self.session.commit()
             return True
         return False
+
+    def mark_stale_assets(self, days_interval: float):
+        cutoff_date = datetime.now() - timedelta(days=days_interval)
+        statement = select(Asset).where(Asset.last_seen < cutoff_date, Asset.status == AssetStatus.active)
+        stale_assets = self.session.exec(statement).all()
+
+        for asset in stale_assets:
+            asset.status = AssetStatus.stale
+            self.session.add(asset)
+
+        self.session.commit()
+        return stale_assets

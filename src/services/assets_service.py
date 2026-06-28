@@ -1,6 +1,7 @@
 from src.repositories import AssetsRepository
 from src.repositories.relationships_repository import RelationshipsRepository
 from src.models import Asset
+from src.models.enums import AssetType, AssetStatus
 from src.models.schema import CreateAssetRequest, UpdateAssetRequest, AssetFilters, BulkImportItem
 from datetime import datetime
 from uuid import UUID
@@ -99,7 +100,6 @@ class AssetsService:
             return self.asset_repo.update_asset(old_asset.id, merged_asset), True
         asset = Asset(
             type=asset_data.type,
-            status=asset_data.status,
             value=asset_data.value,
             source=asset_data.source,
             tags=asset_data.tags,
@@ -108,7 +108,7 @@ class AssetsService:
         return self.asset_repo.create_asset(asset), False
     
     def _merge_assets(self, existing_asset: Asset, updated_asset: CreateAssetRequest) -> Asset:
-        existing_asset.status = updated_asset.status
+        existing_asset.status = AssetStatus.active
         existing_asset.tags = list(set(existing_asset.tags + updated_asset.tags))
         existing_asset.metadata_ = {**existing_asset.metadata_, **updated_asset.metadata}
         existing_asset.last_seen = datetime.now()
@@ -124,6 +124,10 @@ class AssetsService:
             metadata_=updated_asset.metadata,
         )
         return self.asset_repo.update_asset(asset_id, updated_asset)
+
+    def mark_stale_assets(self, days_interval:float) -> Asset | None:
+        return self.asset_repo.mark_stale_assets(days_interval)
+
 
     def delete_asset(self, asset_id: str) -> bool:
         return self.asset_repo.delete_asset(asset_id)

@@ -8,7 +8,6 @@ from src.models.enums import AssetType, AssetStatus
 
 class CreateAssetRequest(BaseModel):
     type: AssetType
-    status: AssetStatus = AssetStatus.active
     value: str
     source: Optional[str] = None
     tags: list[str] = []
