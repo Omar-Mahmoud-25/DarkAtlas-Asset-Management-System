@@ -114,18 +114,19 @@ class AssetsService:
         existing_asset.last_seen = datetime.now()
         return existing_asset
 
-    def update_asset(self, asset_id: str, updated_asset: UpdateAssetRequest) -> Asset:
-        updated_asset = Asset(
-            type=updated_asset.type,
-            status=updated_asset.status,
-            value=updated_asset.value,
-            source=updated_asset.source,
-            tags=updated_asset.tags,
-            metadata_=updated_asset.metadata,
-        )
-        return self.asset_repo.update_asset(asset_id, updated_asset)
+    def update_asset(self, asset_id: str, updated_asset: UpdateAssetRequest) -> Asset | None:
+        # Only forward fields that were explicitly provided — passing None for
+        # required Asset fields (e.g. status) causes a validation error.
+        data = updated_asset.model_dump(exclude_none=True)
+        if "metadata" in data:
+            data["metadata_"] = data.pop("metadata")
+        patch_asset = Asset(**data)
+        return self.asset_repo.update_asset(asset_id, patch_asset)
 
-    def mark_stale_assets(self, days_interval:float) -> Asset | None:
+    def set_asset_status(self, asset_id: str, status: AssetStatus) -> Asset | None:
+        return self.asset_repo.set_status(asset_id, status)
+
+    def mark_stale_assets(self, days_interval: float) -> int:
         return self.asset_repo.mark_stale_assets(days_interval)
 
 

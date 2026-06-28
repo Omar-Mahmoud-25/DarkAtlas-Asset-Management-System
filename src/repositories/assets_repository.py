@@ -83,6 +83,15 @@ class AssetsRepository:
             return True
         return False
 
+    def set_status(self, asset_id: str, status):
+        asset = self.get_asset_by_id(asset_id)
+        if asset:
+            asset.status = status
+            self.session.commit()
+            self.session.refresh(asset)
+            return asset
+        return None
+
     def mark_stale_assets(self, days_interval: float):
         cutoff_date = datetime.now() - timedelta(days=days_interval)
         statement = select(Asset).where(Asset.last_seen < cutoff_date, Asset.status == AssetStatus.active)

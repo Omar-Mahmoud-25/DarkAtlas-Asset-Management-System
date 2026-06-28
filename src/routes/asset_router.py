@@ -97,9 +97,10 @@ async def create_asset(request: CreateAssetRequest, service: AssetsService = Dep
             first_seen=created_asset.first_seen,
             last_seen=created_asset.last_seen,
         )
+        action = "updated" if merged else "created"
         return JSONResponse(
             status_code=201,
-            content={"message": f"Asset {"updated" if merged else "created"} successfully", "asset": response.model_dump(mode="json")}
+            content={"message": f"Asset {action} successfully", "asset": response.model_dump(mode="json")}
         )
     except Exception as e:
         return JSONResponse(status_code=400, content={"message": str(e)})
@@ -140,3 +141,15 @@ async def delete_asset(asset_id: str, service: AssetsService = Depends(get_asset
     if deleted:
         return JSONResponse(status_code=200, content={"message": "Asset deleted successfully"})
     return JSONResponse(status_code=404, content={"message": "Asset not found"})
+
+
+@asset_router.patch("/{asset_id}/status", status_code=200, dependencies=[Depends(write_authorized)])
+async def update_asset_status(
+    asset_id: str,
+    status: AssetStatus = Query(..., description="New status to set"),
+    service: AssetsService = Depends(get_assets_service),
+):
+    asset = service.set_asset_status(asset_id, status)
+    if not asset:
+        return JSONResponse(status_code=404, content={"message": "Asset not found"})
+    return JSONResponse(status_code=200, content={"message": f"Asset marked {status.value}"})
