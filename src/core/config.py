@@ -12,6 +12,7 @@ class Config(BaseSettings):
     API_KEY: str
     STALE_ASSET_DAYS_INTERVAL: float = 30.0
     STALE_JOB_INTERVAL_HOURS: float = 24.0
+    TEST_DATABASE_URL: str | None = None
 
     def model_post_init(self, __context: object) -> None:
         if self.DATABASE_URL is None:

@@ -33,7 +33,7 @@ def test_engine():
     """Create the test engine and ensure all tables exist."""
     url = os.getenv(
         "TEST_DATABASE_URL",
-        "postgresql+psycopg2://darkatlas:darkatlas@localhost:5433/darkatlas",
+        "postgresql+psycopg2://darkatlas:darkatlas@localhost:5433/darkatlas_test",
     )
     engine = create_engine(url)
     SQLModel.metadata.create_all(engine)
