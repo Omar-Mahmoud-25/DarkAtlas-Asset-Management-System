@@ -9,6 +9,7 @@ from src.models.schema import (
 from src.models.enums import AssetType, AssetStatus
 from typing import Optional, Literal
 from src.core.auth import write_authorized
+from src.services.risk_service import RiskService
 
 asset_router = APIRouter(prefix="/api/v1/assets", tags=["assets"])
 
@@ -153,3 +154,24 @@ async def update_asset_status(
     if not asset:
         return JSONResponse(status_code=404, content={"message": "Asset not found"})
     return JSONResponse(status_code=200, content={"message": f"Asset marked {status.value}"})
+
+
+def get_risk_service(db_session=Depends(get_db_session)):
+    return RiskService(db_session)
+
+@asset_router.get("/{asset_id}/risk", status_code=200)
+async def get_asset_risk(
+    asset_id: str,
+    model: Optional[str] = Query(default=None, description="The Gemini model to use (e.g. gemini-1.5-pro-latest)"),
+    service = Depends(get_risk_service)
+):
+    """Evaluate cybersecurity risk for an asset using LangChain + Google Gemini."""
+    try:
+        assessment = service.evaluate_asset_risk(asset_id, model_name=model)
+        if assessment is None:
+            return JSONResponse(status_code=404, content={"message": "Asset not found"})
+        return JSONResponse(status_code=200, content=assessment)
+    except ValueError as ve:
+        return JSONResponse(status_code=503, content={"message": str(ve)})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"message": str(e)})
