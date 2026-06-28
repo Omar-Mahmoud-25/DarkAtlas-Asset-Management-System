@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: darkatlas
+          POSTGRES_PASSWORD: darkatlas
+          POSTGRES_DB: darkatlas
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run tests
+      env:
+        API_KEY: ci_test_key_secret_123
+        POSTGRES_USER: darkatlas
+        POSTGRES_PASSWORD: darkatlas
+        POSTGRES_DB: darkatlas
+        POSTGRES_PORT: 5433
+        DATABASE_URL: postgresql+psycopg2://darkatlas:darkatlas@localhost:5433/darkatlas
+        TEST_DATABASE_URL: postgresql+psycopg2://darkatlas:darkatlas@localhost:5433/darkatlas
+      run: |
+        pytest -v
