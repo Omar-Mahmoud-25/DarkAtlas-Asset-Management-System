@@ -1,6 +1,7 @@
 from uuid import UUID
+from typing import Any
 
-from src.models import AssetRelation
+from src.models import Asset, AssetRelation
 from src.repositories import AssetsRepository
 from src.repositories.relationships_repository import RelationshipsRepository
 
@@ -34,8 +35,40 @@ class RelationshipsService:
             return None
         return self.relations_repo.get_relations_by_asset_id(asset.id)
 
+    def get_asset_graph(
+        self, asset_id: str
+    ) -> tuple[Asset, list[dict[str, Any]], list[dict[str, Any]]] | None:
+        """
+        Return (asset, parents, children) where each parent/child is:
+            {"asset": Asset, "relation_type": str}
+        Returns None if the asset does not exist.
+        """
+        asset = self.assets_repo.get_asset_by_id(asset_id)
+        if not asset:
+            return None
+
+        relations = self.relations_repo.get_relations_by_asset_id(asset.id)
+
+        parents: list[dict[str, Any]] = []
+        children: list[dict[str, Any]] = []
+
+        for relation in relations:
+            if str(relation.child_id) == str(asset.id):
+                # This asset is the child → the other end is a parent
+                related = self.assets_repo.get_asset_by_id(str(relation.parent_id))
+                if related:
+                    parents.append({"asset": related, "relation_type": relation.relation_type})
+            else:
+                # This asset is the parent → the other end is a child
+                related = self.assets_repo.get_asset_by_id(str(relation.child_id))
+                if related:
+                    children.append({"asset": related, "relation_type": relation.relation_type})
+
+        return asset, parents, children
+
     def get_relation_by_id(self, relation_id: str) -> AssetRelation | None:
         return self.relations_repo.get_relation_by_id(relation_id)
 
     def delete_relation(self, relation_id: str) -> bool:
         return self.relations_repo.delete_relation(relation_id)
+

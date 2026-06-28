@@ -3,7 +3,10 @@ from fastapi.responses import JSONResponse
 
 from src.core.auth import write_authorized
 from src.core.database import get_db_session
-from src.models.schema import CreateRelationRequest, RelationResponse, RelationsListResponse
+from src.models.schema import (
+    AssetGraphResponse, AssetResponse, CreateRelationRequest,
+    RelatedAsset, RelationResponse, RelationsListResponse,
+)
 from src.services.relationships_service import RelationshipsService
 
 
@@ -102,3 +105,30 @@ async def delete_relation(
     if deleted:
         return JSONResponse(status_code=200, content={"message": "Relation deleted successfully"})
     return JSONResponse(status_code=404, content={"message": "Relation not found"})
+
+
+# ── Graph ─────────────────────────────────────────────────────────────────────
+
+@relations_router.get(
+    "/{asset_id}/graph",
+    response_model=AssetGraphResponse,
+    summary="Fetch an asset together with its full related-asset graph (one hop)",
+)
+async def get_asset_graph(
+    asset_id: str,
+    service: RelationshipsService = Depends(get_relations_service),
+):
+    result = service.get_asset_graph(asset_id)
+    if result is None:
+        return JSONResponse(status_code=404, content={"message": "Asset not found"})
+
+    asset, parents, children = result
+
+    def to_asset_response(a) -> AssetResponse:
+        return AssetResponse.model_validate(a.__dict__ | {"metadata": a.metadata_ or {}})
+
+    return AssetGraphResponse(
+        asset=to_asset_response(asset),
+        parents=[RelatedAsset(asset=to_asset_response(p["asset"]), relation_type=p["relation_type"]) for p in parents],
+        children=[RelatedAsset(asset=to_asset_response(c["asset"]), relation_type=c["relation_type"]) for c in children],
+    )
