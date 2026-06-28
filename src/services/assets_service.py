@@ -127,7 +127,7 @@ class AssetsService:
         return self.asset_repo.set_status(asset_id, status)
 
     def mark_stale_assets(self, days_interval: float) -> int:
-        return self.asset_repo.mark_stale_assets(days_interval)
+        return len(self.asset_repo.mark_stale_assets(days_interval))
 
 
     def delete_asset(self, asset_id: str) -> bool:
