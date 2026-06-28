@@ -45,25 +45,25 @@ class TestDeduplication:
         assert "created" in resp.json()["message"].lower()
 
     def test_tags_are_merged_on_dedup(self, client, auth_headers):
-        create_asset(client, auth_headers, {"type": "domain", "value": "merge.com", "tags": ["a"]})
-        second = create_asset(client, auth_headers, {"type": "domain", "value": "merge.com", "tags": ["b"]})
+        create_asset(client, auth_headers, {"type": "domain", "value": "merge.com", "source": "scan", "tags": ["a"]})
+        second = create_asset(client, auth_headers, {"type": "domain", "value": "merge.com", "source": "scan", "tags": ["b"]})
 
         assert set(second["tags"]) == {"a", "b"}
 
     def test_tags_are_not_duplicated(self, client, auth_headers):
-        create_asset(client, auth_headers, {"type": "domain", "value": "merge.com", "tags": ["a"]})
-        second = create_asset(client, auth_headers, {"type": "domain", "value": "merge.com", "tags": ["a"]})
+        create_asset(client, auth_headers, {"type": "domain", "value": "merge.com", "source": "scan", "tags": ["a"]})
+        second = create_asset(client, auth_headers, {"type": "domain", "value": "merge.com", "source": "scan", "tags": ["a"]})
 
         assert second["tags"].count("a") == 1
 
     def test_metadata_is_merged_on_dedup(self, client, auth_headers):
         create_asset(client, auth_headers, {
             "type": "certificate", "value": "CN=test.com",
-            "metadata": {"issuer": "Let's Encrypt"},
+            "source": "scan", "metadata": {"issuer": "Let's Encrypt"},
         })
         second = create_asset(client, auth_headers, {
             "type": "certificate", "value": "CN=test.com",
-            "metadata": {"expires": "2026-01-01"},
+            "source": "scan", "metadata": {"expires": "2026-01-01"},
         })
         # Both keys should be present after merge
         assert second["metadata"]["issuer"] == "Let's Encrypt"
@@ -73,18 +73,18 @@ class TestDeduplication:
         """When the same metadata key appears in both, the newer import wins."""
         create_asset(client, auth_headers, {
             "type": "certificate", "value": "CN=test.com",
-            "metadata": {"expires": "2024-01-01"},
+            "source": "scan", "metadata": {"expires": "2024-01-01"},
         })
         second = create_asset(client, auth_headers, {
             "type": "certificate", "value": "CN=test.com",
-            "metadata": {"expires": "2026-01-01"},
+            "source": "scan", "metadata": {"expires": "2026-01-01"},
         })
         assert second["metadata"]["expires"] == "2026-01-01"
 
     def test_different_type_same_value_is_not_a_duplicate(self, client, auth_headers):
         """(type, value) is the dedup key — different type = different asset."""
-        create_asset(client, auth_headers, {"type": "domain", "value": "example.com"})
-        create_asset(client, auth_headers, {"type": "subdomain", "value": "example.com"})
+        create_asset(client, auth_headers, {"type": "domain", "value": "example.com", "source": "scan"})
+        create_asset(client, auth_headers, {"type": "subdomain", "value": "example.com", "source": "scan"})
 
         resp = client.get("/api/v1/assets/")
         assert resp.json()["total_count"] == 2

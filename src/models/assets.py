@@ -21,7 +21,7 @@ class Asset(SQLModel, table=True):
     status: AssetStatus = Field(default=AssetStatus.active, index=True)
     first_seen: datetime = Field(default_factory=datetime.now)
     last_seen: datetime = Field(default_factory=datetime.now)
-    source: Optional[str] = Field(default=None, index=True)
+    source: str = Field(index=True)
     tags: list[str] = Field(default_factory=list, sa_column=Column(ARRAY(String)))
     metadata_: dict[str, Any] = Field(default_factory=dict, sa_column=Column("metadata", JSONB))
 
