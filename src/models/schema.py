@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Any, Optional, Literal
 from uuid import UUID
 from datetime import datetime
@@ -62,8 +62,7 @@ class AssetResponse(BaseModel):
     first_seen: datetime
     last_seen: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ListAssetsResponse(BaseModel):
@@ -80,8 +79,7 @@ class RelationResponse(BaseModel):
     child_id: UUID
     relation_type: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class RelationsListResponse(BaseModel):
     """Relations separated by direction relative to the queried asset."""
@@ -93,13 +91,11 @@ class RelatedAsset(BaseModel):
     asset: AssetResponse
     relation_type: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class AssetGraphResponse(BaseModel):
     asset: AssetResponse
     parents: list[RelatedAsset]
     children: list[RelatedAsset]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
