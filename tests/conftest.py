@@ -18,8 +18,8 @@ from starlette.testclient import TestClient
 # ── env / config ──────────────────────────────────────────────────────────────
 # Must be set BEFORE importing the app so that pydantic-settings picks up the
 # test API key when Config() is first instantiated.
-TEST_API_KEY = "test-super-secret-key"
-os.environ.setdefault("API_KEY", TEST_API_KEY)
+TEST_API_KEY = os.environ.get("API_KEY", "test-super-secret-key")
+os.environ["API_KEY"] = TEST_API_KEY
 
 from main import app  # noqa: E402  (import after env is set)
 from src.core.database import get_db_session  # noqa: E402
