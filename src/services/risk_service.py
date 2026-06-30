@@ -3,7 +3,7 @@ from src.core.config import get_config
 from src.services.assets_service import AssetsService
 from src.services.relationships_service import RelationshipsService
 from src.models.schema import AssetGraphResponse
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_ollama import ChatOllama
 from langchain_core.prompts import PromptTemplate
 from pydantic import BaseModel, Field
 
@@ -18,8 +18,8 @@ class RiskService:
         self.config = get_config()
 
     def evaluate_asset_risk(self, asset_id: str, model_name: str | None = None) -> dict | None:
-        if not self.config.GEMINI_API_KEY:
-            raise ValueError("GEMINI_API_KEY is not configured. Risk scoring is disabled.")
+        if not self.config.OLLAMA_API_KEY:
+            raise ValueError("OLLAMA_API_KEY is not configured. Risk scoring is disabled.")
 
         # Get the asset graph to provide context (shows relationships and metadata like expired certs)
         graph = self.relationships_service.get_asset_graph(asset_id)
@@ -28,12 +28,24 @@ class RiskService:
 
         selected_model = model_name or self.config.GEMINI_MODEL
 
-        # Prepare the LLM using the Gemini Pro model
-        llm = ChatGoogleGenerativeAI(
-            model=selected_model,
-            google_api_key=self.config.GEMINI_API_KEY,
-            temperature=0.2,
-        )
+        # Normalize model name: ensure it has the "models/" prefix
+        if not selected_model.startswith("models/"):
+            selected_model = f"models/{selected_model}"
+
+        # Prepare the LLM using the specified Gemini model
+        try:
+            llm = ChatOllama(
+                model=selected_model,
+                base_url=self.config.OLLAMA_BASE_URL or "https://api.ollama.com",
+                api_key=self.config.OLLAMA_API_KEY,
+            )
+
+        except Exception as e:
+            raise ValueError(
+                f"Failed to initialize model '{selected_model}'. "
+                f"Please use a valid Gemini model name (e.g. 'gemini-2.5-flash', 'gemini-2.0-flash'). "
+                f"Error: {e}"
+            )
 
         structured_llm = llm.with_structured_output(RiskAssessment)
 

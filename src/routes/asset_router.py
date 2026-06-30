@@ -202,7 +202,7 @@ def get_risk_service(db_session=Depends(get_db_session)):
 @asset_router.get("/{asset_id}/risk", status_code=200)
 async def get_asset_risk(
     asset_id: str,
-    model: Optional[str] = Query(default=None, description="The Gemini model to use (e.g. gemini-1.5-pro-latest)"),
+    model: Optional[str] = Query(default=None, description="The Gemini model to use (e.g. gemini-2.5-flash, gemini-2.5-pro)"),
     service = Depends(get_risk_service)
 ):
     """Evaluate cybersecurity risk for an asset using LangChain + Google Gemini."""

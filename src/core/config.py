@@ -10,8 +10,8 @@ class Config(BaseSettings):
     POSTGRES_PORT: int = 5433
     DATABASE_URL: str | None = None
     API_KEY: str
-    GEMINI_API_KEY: str = "" # Optional, required only for risk scoring
-    GEMINI_MODEL: str = "gemini-1.5-pro-latest"
+    OLLAMA_BASE_URL: str = "" # Optional, required only for risk scoring
+    OLLAMA_MODEL: str = "llama3"
     STALE_ASSET_DAYS_INTERVAL: float = 30.0
     STALE_JOB_INTERVAL_HOURS: float = 24.0
     TEST_DATABASE_URL: str | None = None
