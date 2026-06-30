@@ -51,7 +51,7 @@ class TestCreateAsset:
     def test_create_asset_default_status_is_active(self, client, auth_headers):
         resp = client.post(
             "/api/v1/assets/",
-            json={"type": "domain", "value": "test.com"},
+            json={"type": "domain", "value": "test.com", "source": "scan"},
             headers=auth_headers,
         )
         assert resp.status_code == 201
@@ -142,8 +142,8 @@ class TestFiltering:
 
 class TestSorting:
     def _seed(self, client, auth_headers):
-        create_asset(client, auth_headers, {"type": "domain", "value": "aaa.com"})
-        create_asset(client, auth_headers, {"type": "domain", "value": "zzz.com"})
+        create_asset(client, auth_headers, {"type": "domain", "value": "aaa.com", "source": "scan"})
+        create_asset(client, auth_headers, {"type": "domain", "value": "zzz.com", "source": "scan"})
 
     def test_sort_by_value_asc(self, client, auth_headers):
         self._seed(client, auth_headers)
@@ -163,7 +163,7 @@ class TestSorting:
 class TestPagination:
     def _seed(self, client, auth_headers, n=5):
         for i in range(n):
-            create_asset(client, auth_headers, {"type": "domain", "value": f"domain{i}.com"})
+            create_asset(client, auth_headers, {"type": "domain", "value": f"domain{i}.com", "source": "scan"})
 
     def test_pagination_page_size(self, client, auth_headers):
         self._seed(client, auth_headers, n=5)

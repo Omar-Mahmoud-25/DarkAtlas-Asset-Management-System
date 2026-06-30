@@ -173,7 +173,7 @@ When an asset is re-imported:
 - `metadata` is shallow-merged; the newer import's values win on key conflicts.
 - `first_seen` is **never** overwritten.
 - `last_seen` is always updated to `now()`.
-- `source` is not merged — it is overwritten by the newer value. Assumption: the most recent source is the authoritative one.
+- `source` is **not** overwritten on re-import — the original (first-seen) source is preserved. Assumption: the first source that discovered the asset is the authoritative one.
 
 ### Status lifecycle
 ```

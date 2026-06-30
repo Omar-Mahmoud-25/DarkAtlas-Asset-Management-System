@@ -5,13 +5,18 @@ A fresh test engine is created once per session (scope="session").
 After every individual test, all table rows are deleted so tests stay isolated
 without the overhead of recreating the schema each time.
 
+The test database is created automatically if it does not exist, and Alembic
+migrations are applied so the schema always matches the real application.
+No manual setup is required — just run ``pytest``.
+
 Set TEST_DATABASE_URL in your environment (or .env) to point at a dedicated
-test database. Defaults to the same DB as the app (safe because rows are
-cleaned up after every test).
+test database.
 """
 
 import os
 import pytest
+from urllib.parse import urlparse, urlunparse
+from sqlalchemy import text
 from sqlmodel import SQLModel, create_engine, Session
 from starlette.testclient import TestClient
 
@@ -26,19 +31,64 @@ from src.core.database import get_db_session  # noqa: E402
 from src.models.assets import Asset, AssetRelation  # noqa: E402  (registers metadata)
 
 
+# ── helpers: auto-create test DB & run migrations ─────────────────────────────
+
+def _ensure_test_db_exists(test_db_url: str) -> None:
+    """Connect to the default 'postgres' database and CREATE the test DB if it
+    does not already exist."""
+    parsed = urlparse(test_db_url)
+    test_db_name = parsed.path.lstrip("/")
+
+    # Connect to the maintenance database (always exists in PostgreSQL)
+    admin_url = urlunparse(parsed._replace(path="/postgres"))
+    admin_engine = create_engine(admin_url, isolation_level="AUTOCOMMIT")
+
+    with admin_engine.connect() as conn:
+        exists = conn.execute(
+            text("SELECT 1 FROM pg_database WHERE datname = :db"),
+            {"db": test_db_name},
+        ).fetchone()
+        if not exists:
+            conn.execute(text(f'CREATE DATABASE "{test_db_name}"'))
+
+    admin_engine.dispose()
+
+
+def _run_migrations(test_db_url: str) -> None:
+    """Run ``alembic upgrade head`` against the test database."""
+    from alembic.config import Config as AlembicConfig
+    from alembic import command
+
+    alembic_cfg = AlembicConfig("alembic.ini")
+
+    # Temporarily override DATABASE_URL so that alembic/env.py (which calls
+    # get_config()) picks up the test URL instead of the production one.
+    original_db_url = os.environ.get("DATABASE_URL")
+    os.environ["DATABASE_URL"] = test_db_url
+    try:
+        command.upgrade(alembic_cfg, "head")
+    finally:
+        if original_db_url is not None:
+            os.environ["DATABASE_URL"] = original_db_url
+        else:
+            os.environ.pop("DATABASE_URL", None)
+
+
 # ── engine (one per test session) ─────────────────────────────────────────────
 
 @pytest.fixture(scope="session")
 def test_engine():
-    """Create the test engine and ensure all tables exist."""
+    """Auto-create the test database, apply migrations, and yield the engine."""
     url = os.getenv(
         "TEST_DATABASE_URL",
         "postgresql+psycopg2://darkatlas:darkatlas@localhost:5433/darkatlas_test",
     )
+    _ensure_test_db_exists(url)
+    _run_migrations(url)
+
     engine = create_engine(url)
-    SQLModel.metadata.create_all(engine)
     yield engine
-    SQLModel.metadata.drop_all(engine)
+    engine.dispose()
 
 
 # ── per-test table cleanup ─────────────────────────────────────────────────────

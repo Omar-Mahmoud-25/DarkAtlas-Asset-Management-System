@@ -9,7 +9,7 @@ from src.models.enums import AssetType, AssetStatus
 class CreateAssetRequest(BaseModel):
     type: AssetType
     value: str
-    source: Optional[str] = None
+    source: str
     tags: list[str] = []
     metadata: dict[str, Any] = {}
 
@@ -38,7 +38,7 @@ class BulkImportItem(BaseModel):
     type: AssetType
     status: AssetStatus = AssetStatus.active
     value: str
-    source: Optional[str] = None
+    source: str
     tags: list[str] = []
     metadata: dict[str, Any] = {}
     parent: Optional[str] = None
@@ -56,7 +56,7 @@ class AssetResponse(BaseModel):
     type: AssetType
     status: AssetStatus
     value: str
-    source: Optional[str]
+    source: str
     tags: list[str]
     metadata: dict[str, Any]
     first_seen: datetime

@@ -11,14 +11,19 @@ from typing import Optional, Literal
 from src.core.auth import write_authorized
 from src.services.risk_service import RiskService
 
-asset_router = APIRouter(prefix="/api/v1/assets", tags=["assets"])
+asset_router = APIRouter(prefix="/api/v1/assets", tags=["Assets"])
 
 
 def get_assets_service(db_session=Depends(get_db_session)):
     return AssetsService(db_session)
 
 
-@asset_router.get("/", response_model=ListAssetsResponse)
+@asset_router.get(
+    "/",
+    response_model=ListAssetsResponse,
+    summary="List assets",
+    description="Retrieve a paginated list of assets with optional filtering by type, status, tag, source, or value substring. Supports sorting and pagination.",
+)
 async def get_assets(
     type: Optional[AssetType] = Query(default=None, description="Filter by asset type"),
     status: Optional[AssetStatus] = Query(default=None, description="Filter by asset status"),
@@ -58,14 +63,25 @@ async def get_assets(
     )
 
 
-@asset_router.get("/{asset_id}", response_model=AssetResponse)
+@asset_router.get(
+    "/{asset_id}",
+    response_model=AssetResponse,
+    summary="Get asset by ID",
+    description="Retrieve a single asset by its UUID.",
+)
 async def get_asset_by_id(asset_id: str, service: AssetsService = Depends(get_assets_service)):
     asset = service.get_asset_by_id(asset_id)
     if asset:
         return AssetResponse.model_validate(asset.__dict__ | {"metadata": asset.metadata_ or {}})
     return JSONResponse(status_code=404, content={"message": "Asset not found"})
 
-@asset_router.post("/bulk", status_code=201, dependencies=[Depends(write_authorized)])
+@asset_router.post(
+    "/bulk",
+    status_code=201,
+    dependencies=[Depends(write_authorized)],
+    summary="Bulk import assets",
+    description="Import a batch of assets in one request. Performs upsert (dedup by type+value), merges tags/metadata, and resolves `parent`/`covers` relationships. Malformed records are skipped; the rest of the batch proceeds.",
+)
 async def bulk_create_assets(
     assets_data: list[dict],
     service: AssetsService = Depends(get_assets_service)
@@ -83,7 +99,13 @@ async def bulk_create_assets(
     except Exception as e:
         return JSONResponse(status_code=400, content={"message": str(e)})
 
-@asset_router.post("/", status_code=201, dependencies=[Depends(write_authorized)])
+@asset_router.post(
+    "/",
+    status_code=201,
+    dependencies=[Depends(write_authorized)],
+    summary="Create or upsert an asset",
+    description="Create a new asset or update an existing one if the (type, value) pair already exists. On upsert: tags are merged (set-union), metadata is shallow-merged (newer wins), status is forced to active, and last_seen is bumped.",
+)
 async def create_asset(request: CreateAssetRequest, service: AssetsService = Depends(get_assets_service)):
     try:
         created_asset, merged = service.create_asset(request)
@@ -107,7 +129,13 @@ async def create_asset(request: CreateAssetRequest, service: AssetsService = Dep
         return JSONResponse(status_code=400, content={"message": str(e)})
 
 
-@asset_router.put("/{asset_id}", status_code=200, dependencies=[Depends(write_authorized)])
+@asset_router.put(
+    "/{asset_id}",
+    status_code=200,
+    dependencies=[Depends(write_authorized)],
+    summary="Update an asset",
+    description="Partially update an asset by ID. Only provided fields are overwritten; `first_seen` is always preserved.",
+)
 async def update_asset(
     asset_id: str,
     updated_asset: UpdateAssetRequest,
@@ -136,7 +164,13 @@ async def update_asset(
         return JSONResponse(status_code=400, content={"message": str(e)})
 
 
-@asset_router.delete("/{asset_id}", status_code=200, dependencies=[Depends(write_authorized)])
+@asset_router.delete(
+    "/{asset_id}",
+    status_code=200,
+    dependencies=[Depends(write_authorized)],
+    summary="Delete an asset",
+    description="Permanently delete an asset by ID. To soft-delete, use PATCH /status to set it to `archived` instead.",
+)
 async def delete_asset(asset_id: str, service: AssetsService = Depends(get_assets_service)):
     deleted = service.delete_asset(asset_id)
     if deleted:
@@ -144,7 +178,13 @@ async def delete_asset(asset_id: str, service: AssetsService = Depends(get_asset
     return JSONResponse(status_code=404, content={"message": "Asset not found"})
 
 
-@asset_router.patch("/{asset_id}/status", status_code=200, dependencies=[Depends(write_authorized)])
+@asset_router.patch(
+    "/{asset_id}/status",
+    status_code=200,
+    dependencies=[Depends(write_authorized)],
+    summary="Change asset status",
+    description="Set an asset's status to `active`, `stale`, or `archived`.",
+)
 async def update_asset_status(
     asset_id: str,
     status: AssetStatus = Query(..., description="New status to set"),

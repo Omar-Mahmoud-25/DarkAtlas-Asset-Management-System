@@ -116,9 +116,9 @@ class TestBulkImportIdempotency:
 class TestBulkImportMalformedRecords:
     def test_invalid_type_is_skipped_gracefully(self, client, auth_headers):
         data = [
-            {"id": "b1", "type": "domain", "value": "good.com"},
-            {"id": "b2", "type": "not_a_valid_type", "value": "bad.com"},  # invalid
-            {"id": "b3", "type": "subdomain", "value": "also-good.com"},
+            {"id": "b1", "type": "domain", "value": "good.com", "source": "scan"},
+            {"id": "b2", "type": "not_a_valid_type", "value": "bad.com", "source": "scan"},  # invalid
+            {"id": "b3", "type": "subdomain", "value": "also-good.com", "source": "scan"},
         ]
         resp = bulk_import(client, auth_headers, data)
         assert resp.status_code == 201
@@ -131,7 +131,7 @@ class TestBulkImportMalformedRecords:
     def test_missing_value_field_is_skipped(self, client, auth_headers):
         data = [
             {"id": "c1", "type": "domain"},            # missing value
-            {"id": "c2", "type": "domain", "value": "ok.com"},
+            {"id": "c2", "type": "domain", "value": "ok.com", "source": "scan"},
         ]
         resp = bulk_import(client, auth_headers, data)
         body = resp.json()
@@ -152,9 +152,9 @@ class TestBulkImportMalformedRecords:
     def test_partial_batch_valid_records_still_created(self, client, auth_headers):
         """Even if half the records are bad, the good ones are saved."""
         data = [
-            {"id": "d1", "type": "domain", "value": "valid1.com"},
+            {"id": "d1", "type": "domain", "value": "valid1.com", "source": "scan"},
             {"id": "d2", "type": "BAD_TYPE"},  # missing value + bad type
-            {"id": "d3", "type": "domain", "value": "valid2.com"},
+            {"id": "d3", "type": "domain", "value": "valid2.com", "source": "scan"},
         ]
         bulk_import(client, auth_headers, data)
         assert list_assets(client)["total_count"] == 2
@@ -205,7 +205,7 @@ class TestBulkImportRelationships:
 
     def test_invalid_parent_reference_logged_as_error(self, client, auth_headers):
         data = [
-            {"id": "e1", "type": "subdomain", "value": "orphan.com", "parent": "nonexistent"},
+            {"id": "e1", "type": "subdomain", "value": "orphan.com", "source": "scan", "parent": "nonexistent"},
         ]
         resp = bulk_import(client, auth_headers, data)
         body = resp.json()

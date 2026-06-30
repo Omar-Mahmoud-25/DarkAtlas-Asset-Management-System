@@ -30,15 +30,29 @@ async def lifespan(app: FastAPI):
     finally:
         scheduler.shutdown()
 
-app = FastAPI(lifespan=lifespan, title="DarkAtlas Asset Management System", version="1.0.0")
+app = FastAPI(
+    lifespan=lifespan,
+    title="DarkAtlas Asset Management System",
+    version="1.0.0",
+    description=(
+        "Attack Surface Management API — track digital assets (domains, subdomains, IPs, "
+        "certificates, services, technologies), manage their lifecycle, model relationships, "
+        "and enforce deduplication on every import."
+    ),
+    openapi_tags=[
+        {"name": "Assets", "description": "CRUD, filtering, sorting, pagination, and bulk import of assets."},
+        {"name": "Relations", "description": "Directed relationships between assets and graph traversal."},
+        {"name": "Health", "description": "Service and database health checks."},
+    ],
+)
 app.include_router(asset_router)
 app.include_router(relations_router)
 
-@app.get("/health")
+@app.get("/health", tags=["Health"], summary="Service health check")
 async def health_check():
     return {"status": "healthy"}
 
-@app.get("/db-health")
+@app.get("/db-health", tags=["Health"], summary="Database health check")
 async def db_health_check(session = Depends(get_db_session)):
     try:
         statement = select(1)
