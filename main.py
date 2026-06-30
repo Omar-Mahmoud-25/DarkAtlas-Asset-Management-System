@@ -8,11 +8,10 @@ from src.routes.relationships_router import relations_router
 from apscheduler.schedulers.background import BackgroundScheduler
 from contextlib import asynccontextmanager
 from sqlmodel import Session
+from src.core.config import get_config
+from src.services.assets_service import AssetsService
 
 def run_scheduler():
-    from src.services.assets_service import AssetsService
-    from src.core.config import get_config
-
     config = get_config()
     with Session(engine) as session:
         assets_service = AssetsService(session)
@@ -20,7 +19,6 @@ def run_scheduler():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from src.core.config import get_config
     config = get_config()
     scheduler = BackgroundScheduler()
     scheduler.add_job(run_scheduler, 'interval', hours=config.STALE_JOB_INTERVAL_HOURS)
