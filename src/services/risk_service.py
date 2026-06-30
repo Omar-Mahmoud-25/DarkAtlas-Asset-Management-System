@@ -1,4 +1,5 @@
 import json
+import logging
 from src.core.config import get_config
 from src.services.assets_service import AssetsService
 from src.services.relationships_service import RelationshipsService
@@ -6,6 +7,8 @@ from src.models.schema import AssetGraphResponse
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import PromptTemplate
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger(__name__)
 
 class RiskAssessment(BaseModel):
     score: int = Field(description="Risk score from 0 to 100, where 100 is highest risk.")
@@ -18,32 +21,32 @@ class RiskService:
         self.config = get_config()
 
     def evaluate_asset_risk(self, asset_id: str, model_name: str | None = None) -> dict | None:
-        if not self.config.OLLAMA_API_KEY:
-            raise ValueError("OLLAMA_API_KEY is not configured. Risk scoring is disabled.")
+        logger.debug("Starting risk evaluation for asset ID: %s", asset_id)
+        if not self.config.OLLAMA_BASE_URL:
+            logger.error("OLLAMA_BASE_URL is not configured. Risk scoring is disabled.")
+            raise ValueError("OLLAMA_BASE_URL is not configured. Risk scoring is disabled.")
 
         # Get the asset graph to provide context (shows relationships and metadata like expired certs)
         graph = self.relationships_service.get_asset_graph(asset_id)
         if not graph:
+            logger.warning("No asset graph found for asset ID: %s", asset_id)
             return None
 
-        selected_model = model_name or self.config.GEMINI_MODEL
+        selected_model = model_name or self.config.OLLAMA_MODEL
+        logger.debug("Initializing ChatOllama with model: %s, base URL: %s", selected_model, self.config.OLLAMA_BASE_URL)
 
-        # Normalize model name: ensure it has the "models/" prefix
-        if not selected_model.startswith("models/"):
-            selected_model = f"models/{selected_model}"
-
-        # Prepare the LLM using the specified Gemini model
+        # Prepare the LLM using the specified Ollama model
         try:
             llm = ChatOllama(
                 model=selected_model,
-                base_url=self.config.OLLAMA_BASE_URL or "https://api.ollama.com",
-                api_key=self.config.OLLAMA_API_KEY,
+                base_url=self.config.OLLAMA_BASE_URL,
+                temperature=0.2,
             )
-
         except Exception as e:
+            logger.error("Failed to initialize ChatOllama model '%s': %s", selected_model, str(e), exc_info=True)
             raise ValueError(
                 f"Failed to initialize model '{selected_model}'. "
-                f"Please use a valid Gemini model name (e.g. 'gemini-2.5-flash', 'gemini-2.0-flash'). "
+                f"Please use a valid Ollama model name (e.g. 'llama3', 'mistral'). "
                 f"Error: {e}"
             )
 
@@ -72,11 +75,14 @@ class RiskService:
 
         chain = prompt | structured_llm
 
+        logger.debug("Invoking LangChain Ollama model for asset ID: %s", asset_id)
         try:
             result = chain.invoke({"asset_json": asset_json})
+            logger.info("Successfully generated risk score: %d for asset ID: %s", result.score, asset_id)
             return {
                 "score": result.score,
                 "summary": result.summary
             }
         except Exception as e:
+            logger.error("Failed to generate risk assessment for asset ID: %s. Error: %s", asset_id, str(e), exc_info=True)
             raise RuntimeError(f"Failed to generate risk assessment: {str(e)}")

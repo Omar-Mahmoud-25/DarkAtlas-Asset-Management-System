@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 from src.core.database import get_db_session
@@ -10,6 +11,8 @@ from src.models.enums import AssetType, AssetStatus
 from typing import Optional, Literal
 from src.core.auth import write_authorized
 from src.services.risk_service import RiskService
+
+logger = logging.getLogger(__name__)
 
 asset_router = APIRouter(prefix="/api/v1/assets", tags=["Assets"])
 
@@ -49,11 +52,13 @@ async def get_assets(
         page=page,
         page_size=page_size,
     )
+    logger.debug("Listing assets with filters: %s", filters.model_dump(exclude_none=True))
     assets, total_count = service.get_assets(filters)
     asset_responses = [
         AssetResponse.model_validate(a.__dict__ | {"metadata": a.metadata_ or {}})
         for a in assets
     ]
+    logger.debug("Retrieved %d assets of total %d", len(asset_responses), total_count)
     return ListAssetsResponse(
         total_count=total_count,
         page=page,
@@ -70,10 +75,14 @@ async def get_assets(
     description="Retrieve a single asset by its UUID.",
 )
 async def get_asset_by_id(asset_id: str, service: AssetsService = Depends(get_assets_service)):
+    logger.debug("Getting asset by ID: %s", asset_id)
     asset = service.get_asset_by_id(asset_id)
     if asset:
+        logger.debug("Found asset: %s", asset.value)
         return AssetResponse.model_validate(asset.__dict__ | {"metadata": asset.metadata_ or {}})
+    logger.warning("Asset not found: %s", asset_id)
     return JSONResponse(status_code=404, content={"message": "Asset not found"})
+
 
 @asset_router.post(
     "/bulk",
@@ -86,8 +95,15 @@ async def bulk_create_assets(
     assets_data: list[dict],
     service: AssetsService = Depends(get_assets_service)
 ):
+    logger.info("Starting bulk creation of assets. Total records: %d", len(assets_data))
     try:
         created_count, updated_count, errors = service.bulk_create_assets(assets_data)
+        logger.info(
+            "Bulk creation completed. Created: %d, Updated: %d, Errors: %d",
+            created_count, updated_count, len(errors)
+        )
+        if errors:
+            logger.warning("Errors encountered during bulk import: %s", errors)
         return JSONResponse(
             status_code=201,
             content={
@@ -97,7 +113,9 @@ async def bulk_create_assets(
             }
         )
     except Exception as e:
+        logger.error("Bulk creation failed with unhandled exception: %s", str(e), exc_info=True)
         return JSONResponse(status_code=400, content={"message": str(e)})
+
 
 @asset_router.post(
     "/",
@@ -107,6 +125,7 @@ async def bulk_create_assets(
     description="Create a new asset or update an existing one if the (type, value) pair already exists. On upsert: tags are merged (set-union), metadata is shallow-merged (newer wins), status is forced to active, and last_seen is bumped.",
 )
 async def create_asset(request: CreateAssetRequest, service: AssetsService = Depends(get_assets_service)):
+    logger.info("Creating asset: type=%s, value=%s", request.type, request.value)
     try:
         created_asset, merged = service.create_asset(request)
         response = AssetResponse(
@@ -121,11 +140,13 @@ async def create_asset(request: CreateAssetRequest, service: AssetsService = Dep
             last_seen=created_asset.last_seen,
         )
         action = "updated" if merged else "created"
+        logger.info("Asset %s successfully: %s", action, created_asset.id)
         return JSONResponse(
             status_code=201,
             content={"message": f"Asset {action} successfully", "asset": response.model_dump(mode="json")}
         )
     except Exception as e:
+        logger.error("Failed to create/upsert asset: %s", str(e), exc_info=True)
         return JSONResponse(status_code=400, content={"message": str(e)})
 
 
@@ -141,6 +162,7 @@ async def update_asset(
     updated_asset: UpdateAssetRequest,
     service: AssetsService = Depends(get_assets_service)
 ):
+    logger.info("Updating asset: ID=%s", asset_id)
     try:
         asset = service.update_asset(asset_id, updated_asset)
         if asset:
@@ -155,12 +177,15 @@ async def update_asset(
                 first_seen=asset.first_seen,
                 last_seen=asset.last_seen,
             )
+            logger.info("Asset ID=%s updated successfully", asset_id)
             return JSONResponse(
                 status_code=200,
                 content={"message": "Asset updated successfully", "asset": response.model_dump(mode="json")}
             )
+        logger.warning("Asset ID=%s not found for update", asset_id)
         return JSONResponse(status_code=404, content={"message": "Asset not found"})
     except Exception as e:
+        logger.error("Failed to update asset ID=%s: %s", asset_id, str(e), exc_info=True)
         return JSONResponse(status_code=400, content={"message": str(e)})
 
 
@@ -172,9 +197,12 @@ async def update_asset(
     description="Permanently delete an asset by ID. To soft-delete, use PATCH /status to set it to `archived` instead.",
 )
 async def delete_asset(asset_id: str, service: AssetsService = Depends(get_assets_service)):
+    logger.info("Deleting asset ID=%s", asset_id)
     deleted = service.delete_asset(asset_id)
     if deleted:
+        logger.info("Asset ID=%s deleted successfully", asset_id)
         return JSONResponse(status_code=200, content={"message": "Asset deleted successfully"})
+    logger.warning("Asset ID=%s not found for deletion", asset_id)
     return JSONResponse(status_code=404, content={"message": "Asset not found"})
 
 
@@ -190,28 +218,37 @@ async def update_asset_status(
     status: AssetStatus = Query(..., description="New status to set"),
     service: AssetsService = Depends(get_assets_service),
 ):
+    logger.info("Updating asset status: ID=%s, status=%s", asset_id, status.value)
     asset = service.set_asset_status(asset_id, status)
     if not asset:
+        logger.warning("Asset ID=%s not found for status update", asset_id)
         return JSONResponse(status_code=404, content={"message": "Asset not found"})
+    logger.info("Asset ID=%s status updated to %s", asset_id, status.value)
     return JSONResponse(status_code=200, content={"message": f"Asset marked {status.value}"})
 
 
 def get_risk_service(db_session=Depends(get_db_session)):
     return RiskService(db_session)
 
+
 @asset_router.get("/{asset_id}/risk", status_code=200)
 async def get_asset_risk(
     asset_id: str,
-    model: Optional[str] = Query(default=None, description="The Gemini model to use (e.g. gemini-2.5-flash, gemini-2.5-pro)"),
+    model: Optional[str] = Query(default=None, description="The Ollama model to use (e.g. llama3, mistral)"),
     service = Depends(get_risk_service)
 ):
-    """Evaluate cybersecurity risk for an asset using LangChain + Google Gemini."""
+    """Evaluate cybersecurity risk for an asset using LangChain + Ollama."""
+    logger.info("Asset risk assessment requested. ID=%s, model=%s", asset_id, model)
     try:
         assessment = service.evaluate_asset_risk(asset_id, model_name=model)
         if assessment is None:
+            logger.warning("Asset ID=%s not found for risk assessment", asset_id)
             return JSONResponse(status_code=404, content={"message": "Asset not found"})
+        logger.info("Successfully completed risk assessment for asset ID=%s", asset_id)
         return JSONResponse(status_code=200, content=assessment)
     except ValueError as ve:
+        logger.warning("ValueError during risk scoring for asset ID=%s: %s", asset_id, str(ve))
         return JSONResponse(status_code=503, content={"message": str(ve)})
     except Exception as e:
+        logger.error("Unexpected error during risk scoring for asset ID=%s: %s", asset_id, str(e), exc_info=True)
         return JSONResponse(status_code=500, content={"message": str(e)})

@@ -1,3 +1,4 @@
+import logging
 from fastapi import FastAPI, Depends
 from sqlmodel import select
 from sqlalchemy.exc import OperationalError
@@ -11,22 +12,38 @@ from sqlmodel import Session
 from src.core.config import get_config
 from src.services.assets_service import AssetsService
 
+# Initialize logging configuration
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
+
 def run_scheduler():
     config = get_config()
-    with Session(engine) as session:
-        assets_service = AssetsService(session)
-        assets_service.mark_stale_assets(config.STALE_ASSET_DAYS_INTERVAL)
+    logger.info("Running stale assets identification scheduler job...")
+    try:
+        with Session(engine) as session:
+            assets_service = AssetsService(session)
+            assets_service.mark_stale_assets(config.STALE_ASSET_DAYS_INTERVAL)
+        logger.info("Scheduler job finished successfully.")
+    except Exception as e:
+        logger.error("Failed to run stale assets scheduler job: %s", str(e), exc_info=True)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     config = get_config()
+    logger.info("Initializing application background scheduler...")
     scheduler = BackgroundScheduler()
     scheduler.add_job(run_scheduler, 'interval', hours=config.STALE_JOB_INTERVAL_HOURS)
     scheduler.start()
+    logger.info("Background scheduler started successfully.")
     try:
         yield
     finally:
+        logger.info("Shutting down background scheduler...")
         scheduler.shutdown()
+        logger.info("Background scheduler shut down successfully.")
 
 app = FastAPI(
     lifespan=lifespan,
