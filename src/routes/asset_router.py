@@ -231,24 +231,24 @@ def get_risk_service(db_session=Depends(get_db_session)):
     return RiskService(db_session)
 
 
-@asset_router.get("/{asset_id}/risk", status_code=200)
-async def get_asset_risk(
-    asset_id: str,
-    model: Optional[str] = Query(default=None, description="The Ollama model to use (e.g. llama3, mistral)"),
-    service = Depends(get_risk_service)
-):
-    """Evaluate cybersecurity risk for an asset using LangChain + Ollama."""
-    logger.info("Asset risk assessment requested. ID=%s, model=%s", asset_id, model)
-    try:
-        assessment = service.evaluate_asset_risk(asset_id, model_name=model)
-        if assessment is None:
-            logger.warning("Asset ID=%s not found for risk assessment", asset_id)
-            return JSONResponse(status_code=404, content={"message": "Asset not found"})
-        logger.info("Successfully completed risk assessment for asset ID=%s", asset_id)
-        return JSONResponse(status_code=200, content=assessment)
-    except ValueError as ve:
-        logger.warning("ValueError during risk scoring for asset ID=%s: %s", asset_id, str(ve))
-        return JSONResponse(status_code=503, content={"message": str(ve)})
-    except Exception as e:
-        logger.error("Unexpected error during risk scoring for asset ID=%s: %s", asset_id, str(e), exc_info=True)
-        return JSONResponse(status_code=500, content={"message": str(e)})
+# @asset_router.get("/{asset_id}/risk", status_code=200)
+# async def get_asset_risk(
+#     asset_id: str,
+#     model: Optional[str] = Query(default=None, description="The Ollama model to use (e.g. llama3, mistral)"),
+#     service = Depends(get_risk_service)
+# ):
+#     """Evaluate cybersecurity risk for an asset using LangChain + Ollama."""
+#     logger.info("Asset risk assessment requested. ID=%s, model=%s", asset_id, model)
+#     try:
+#         assessment = service.evaluate_asset_risk(asset_id, model_name=model)
+#         if assessment is None:
+#             logger.warning("Asset ID=%s not found for risk assessment", asset_id)
+#             return JSONResponse(status_code=404, content={"message": "Asset not found"})
+#         logger.info("Successfully completed risk assessment for asset ID=%s", asset_id)
+#         return JSONResponse(status_code=200, content=assessment)
+#     except ValueError as ve:
+#         logger.warning("ValueError during risk scoring for asset ID=%s: %s", asset_id, str(ve))
+#         return JSONResponse(status_code=503, content={"message": str(ve)})
+#     except Exception as e:
+#         logger.error("Unexpected error during risk scoring for asset ID=%s: %s", asset_id, str(e), exc_info=True)
+#         return JSONResponse(status_code=500, content={"message": str(e)})
